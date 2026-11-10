@@ -1,7 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { memo } from 'react';
 import type { Rect } from '../../domain/geometry';
-import type { Note } from '../../domain/note';
+import type { Note, NoteId } from '../../domain/note';
 import { classNames } from '../../utils/classNames';
 import { rectStyle } from '../rectStyle';
 import './StickyNote.css';
@@ -12,6 +12,7 @@ interface StickyNoteProps {
   readonly rect: Rect;
   readonly isDragging: boolean;
   readonly isOverTrash: boolean;
+  readonly onTextChange: (id: NoteId, text: string) => void;
   readonly onMoveStart: (note: Note, event: ReactPointerEvent<HTMLElement>) => void;
   readonly onResizeStart: (note: Note, event: ReactPointerEvent<HTMLElement>) => void;
 }
@@ -21,6 +22,7 @@ function StickyNoteComponent({
   rect,
   isDragging,
   isOverTrash,
+  onTextChange,
   onMoveStart,
   onResizeStart,
 }: StickyNoteProps) {
@@ -35,7 +37,13 @@ function StickyNoteComponent({
       <header className="note__header" onPointerDown={(event) => onMoveStart(note, event)}>
         <span className="note__grip" aria-hidden="true" />
       </header>
-      <div className="note__body" />
+      <textarea
+        className="note__text"
+        value={note.text}
+        placeholder="Write something…"
+        aria-label="Note text"
+        onChange={(event) => onTextChange(note.id, event.target.value)}
+      />
       <div
         className="note__resize"
         aria-hidden="true"

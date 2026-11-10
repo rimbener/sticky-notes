@@ -10,6 +10,7 @@ export interface NotesCommands {
     readonly createNote: (rect: Rect) => void;
     readonly setNoteRect: (id: NoteId, rect: Rect) => void;
     readonly deleteNote: (id: NoteId) => void;
+    readonly setNoteText: (id: NoteId, text: string) => void;
 }
 
 export interface UseNotesResult {
@@ -36,6 +37,9 @@ export function useNotes(): UseNotesResult {
             deleteNote(id) {
                 dispatch({ type: 'note/removed', id });
             },
+            setNoteText(id, text) {
+                dispatch({ type: 'note/updated', id, changes: { text } })
+            }
         }),
     );
 

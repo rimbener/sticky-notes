@@ -177,6 +177,7 @@ export function Board({ notes, commands }: BoardProps) {
                             rect={isActive ? active.rect : note.rect}
                             isDragging={isActive}
                             isOverTrash={isActive && isOverTrash}
+                            onTextChange={commands.setNoteText}
                             onMoveStart={handleMoveStart}
                             onResizeStart={handleResizeStart}
                         />

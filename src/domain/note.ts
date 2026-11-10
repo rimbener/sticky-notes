@@ -9,13 +9,14 @@ export type NoteId = string & { readonly [noteIdBrand]: true };
 export interface Note {
     readonly id: NoteId;
     readonly rect: Rect;
+    readonly text: string;
 }
 
 /** Everything that can change after a note exists. */
 export type NoteChanges = Partial<Omit<Note, 'id'>>;
 
 /** What the caller must decide when creating a note. The rest gets defaults. */
-export type NewNote = Omit<Note, 'id'>;
+export type NewNote = Omit<Note, 'id' | 'text'>;
 
 export const MIN_NOTE_SIZE: Size = { width: 140, height: 100 };
 
@@ -28,7 +29,7 @@ export function toNoteId(value: string): NoteId {
 }
 
 export function createNote(fields: NewNote): Note {
-    return { id: toNoteId(crypto.randomUUID()), ...fields };
+    return { id: toNoteId(crypto.randomUUID()), text: '', ...fields };
 }
 
 /** The one rule for updating a note, shared by the reducer and the storage. */

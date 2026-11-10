@@ -1,0 +1,71 @@
+.note {
+    --note-bg: #fff3a3;
+    --note-header: #fbe47a;
+
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius);
+    background: var(--note-bg);
+    box-shadow: var(--shadow);
+    pointer-events: auto;
+    cursor: default;
+    contain: layout;
+    transition:
+        box-shadow 120ms ease,
+        opacity 120ms ease;
+}
+
+.note--dragging {
+    box-shadow: var(--shadow-lifted);
+    will-change: transform;
+}
+
+.note--over-trash {
+    opacity: 0.45;
+}
+
+.note__header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 28px;
+    padding: 0 6px 0 10px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: var(--note-header);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.note--dragging .note__header {
+    cursor: grabbing;
+}
+
+/* Six dots that say "drag me". */
+.note__grip {
+    width: 10px;
+    height: 14px;
+    background-image: radial-gradient(var(--ink-soft) 1.2px, transparent 1.4px);
+    background-size: 5px 5px;
+}
+
+.note__body {
+    flex: 1;
+}
+
+.note__resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 18px;
+    height: 18px;
+    border-bottom-right-radius: var(--radius);
+    background: linear-gradient(135deg, transparent 55%, rgb(0 0 0 / 0.22) 55%);
+    cursor: nwse-resize;
+    touch-action: none;
+}

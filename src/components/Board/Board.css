@@ -1,0 +1,45 @@
+.board {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--board-bg);
+    background-image: radial-gradient(var(--board-dot) 1px, transparent 1px);
+    background-size: 24px 24px;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.board--busy {
+    user-select: none;
+}
+
+/* Own stacking context: note z-indexes can grow forever and still stay below the trash. */
+.board__layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.board__draft {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    border: 2px dashed var(--ink-soft);
+    border-radius: var(--radius);
+    background: rgb(255 255 255 / 0.4);
+    pointer-events: none;
+}
+
+.board__hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin: 0;
+    transform: translate(-50%, -50%);
+    color: var(--ink-soft);
+    font-size: 18px;
+    pointer-events: none;
+}

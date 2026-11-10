@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { clampPoint } from '../../domain/geometry';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Point, Rect, Size } from '../../domain/geometry';
-import { noteRectFromDrag } from '../../domain/note';
+import { clampPoint, rectsEqual, resizeRect, subtractPoints } from '../../domain/geometry';
 import type { Note, NoteId } from '../../domain/note';
+import { MIN_NOTE_SIZE, noteRectFromDrag } from '../../domain/note';
 import { startPointerDrag } from '../../interaction/pointerDrag';
 import type { NotesCommands } from '../../state/useNotes';
+import { classNames } from '../../utils/classNames';
 import { rectStyle } from '../rectStyle';
 import { StickyNote } from '../StickyNote/StickyNote';
-import { classNames } from '../../utils/classNames';
 import './Board.css';
 
 /** What the user is doing right now. Only one gesture can be active at a time. */
@@ -96,6 +96,26 @@ export function Board({ notes, commands }: BoardProps) {
         });
     };
 
+    const handleResizeStart = useCallback(
+        (note: Note, event: ReactPointerEvent<HTMLElement>) => {
+            const board = boardRef.current;
+            if (event.button !== 0 || board === null) return;
+
+            const frame = measureBoard(board);
+            const start = toBoardPoint(event, frame)
+            const previewAt = (pointer: PointerEvent) => resizeRect(note.rect, subtractPoints(toBoardPoint(pointer, frame), start), MIN_NOTE_SIZE, frame.bounds)
+
+            beginGesture(event, { kind: 'resizing', noteId: note.id, rect: note.rect }, {
+                onMove: (pointer) => setInteraction({ kind: 'resizing', noteId: note.id, rect: previewAt(pointer) }),
+                onDrop: (pointer) => {
+                    const rect = previewAt(pointer)
+                    if (!rectsEqual(rect, note.rect)) commands.setNoteRect(note.id, rect)
+                }
+            })
+        }, [beginGesture, commands])
+
+    const active = interaction.kind === 'moving' || interaction.kind === 'resizing' ? interaction : null;
+
     return (
         <div
             ref={boardRef}
@@ -103,9 +123,18 @@ export function Board({ notes, commands }: BoardProps) {
             onPointerDown={handleBoardPointerDown}
         >
             <div className="board__layer">
-                {notes.map((note) => (
-                    <StickyNote key={note.id} note={note} rect={note.rect} />
-                ))}
+                {notes.map((note) => {
+                    const isActive = active !== null && active.noteId === note.id;
+                    return (
+                        <StickyNote
+                            key={note.id}
+                            note={note}
+                            rect={isActive ? active.rect : note.rect}
+                            isDragging={isActive}
+                            onResizeStart={handleResizeStart}
+                        />
+                    );
+                })}
             </div>
 
             {interaction.kind === 'creating' && interaction.rect !== null && (

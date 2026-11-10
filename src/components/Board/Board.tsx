@@ -1,7 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Point, Rect, Size } from '../../domain/geometry';
-import { clampPoint, rectsEqual, resizeRect, subtractPoints } from '../../domain/geometry';
+import { clampPoint, moveRect, rectsEqual, resizeRect, subtractPoints } from '../../domain/geometry';
 import type { Note, NoteId } from '../../domain/note';
 import { MIN_NOTE_SIZE, noteRectFromDrag } from '../../domain/note';
 import { startPointerDrag } from '../../interaction/pointerDrag';
@@ -114,6 +114,27 @@ export function Board({ notes, commands }: BoardProps) {
             })
         }, [beginGesture, commands])
 
+    const handleMoveStart = useCallback(
+        (note: Note, event: ReactPointerEvent<HTMLElement>) => {
+            const board = boardRef.current;
+            if (event.button !== 0 || board === null) return
+
+            const frame = measureBoard(board);
+            const start = toBoardPoint(event, frame);
+            const previewAt = (pointer: PointerEvent) =>
+                moveRect(note.rect, subtractPoints(toBoardPoint(pointer, frame), start), frame.bounds)
+
+            beginGesture(event, { kind: 'moving', noteId: note.id, rect: note.rect, overTrash: false }, {
+                onMove: (pointer) => setInteraction({ kind: 'moving', noteId: note.id, rect: previewAt(pointer), overTrash: false }),
+                onDrop: (pointer) => {
+                    const rect = previewAt(pointer);
+                    if (!rectsEqual(rect, note.rect)) commands.setNoteRect(note.id, rect)
+                }
+            })
+        },
+        [beginGesture, commands]
+    )
+
     const active = interaction.kind === 'moving' || interaction.kind === 'resizing' ? interaction : null;
 
     return (
@@ -131,6 +152,7 @@ export function Board({ notes, commands }: BoardProps) {
                             note={note}
                             rect={isActive ? active.rect : note.rect}
                             isDragging={isActive}
+                            onMoveStart={handleMoveStart}
                             onResizeStart={handleResizeStart}
                         />
                     );

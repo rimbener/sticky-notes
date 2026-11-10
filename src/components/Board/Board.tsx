@@ -1,22 +1,24 @@
-import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Point, Rect, Size } from '../../domain/geometry';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import {
     clampPoint,
     containsPoint,
+    fitRect,
     moveRect,
     rectsEqual,
     resizeRect,
     subtractPoints,
 } from '../../domain/geometry';
-import type { Note, NoteId } from '../../domain/note';
+import type { Point, Rect, Size } from '../../domain/geometry';
 import { MIN_NOTE_SIZE, noteRectFromDrag } from '../../domain/note';
+import type { Note, NoteId } from '../../domain/note';
+import { useElementSize } from '../../hooks/useElementSize';
 import { startPointerDrag } from '../../interaction/pointerDrag';
 import type { NotesCommands } from '../../state/useNotes';
-import { classNames } from '../../utils/classNames';
 import { rectStyle } from '../rectStyle';
 import { StickyNote } from '../StickyNote/StickyNote';
 import { TrashZone } from '../TrashZone/TrashZone';
+import { classNames } from '../../utils/classNames';
 import './Board.css';
 
 /** What the user is doing right now. Only one gesture can be active at a time. */
@@ -54,13 +56,15 @@ interface GestureCallbacks {
 interface BoardProps {
     readonly notes: readonly Note[];
     readonly commands: NotesCommands;
+    readonly disabled: boolean;
 }
 
-export function Board({ notes, commands }: BoardProps) {
+export function Board({ notes, commands, disabled }: BoardProps) {
     const boardRef = useRef<HTMLDivElement>(null);
     const trashRef = useRef<HTMLDivElement>(null);
     const stopDragRef = useRef<(() => void) | null>(null);
     const [interaction, setInteraction] = useState<Interaction>(IDLE);
+    const boardSize = useElementSize(boardRef);
 
     // If the board unmounts mid-drag, remove the window listeners.
     useEffect(() => () => stopDragRef.current?.(), []);
@@ -88,7 +92,7 @@ export function Board({ notes, commands }: BoardProps) {
 
     const handleBoardPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
         // Only primary-button presses on empty board space start a new note.
-        if (event.button !== 0 || event.target !== event.currentTarget) return;
+        if (disabled || event.button !== 0 || event.target !== event.currentTarget) return;
         // The trash lets clicks through (pointer-events: none), so ignore presses on it here.
         const trash = trashRef.current;
         if (trash !== null && containsPoint(trash.getBoundingClientRect(), { x: event.clientX, y: event.clientY })) {
@@ -119,17 +123,18 @@ export function Board({ notes, commands }: BoardProps) {
             const frame = measureBoard(board);
             const trashBox = trash.getBoundingClientRect();
             const start = toBoardPoint(event, frame);
+            const startRect = fitRect(note.rect, MIN_NOTE_SIZE, frame.bounds); // what the user sees
             const previewAt = (pointer: PointerEvent) => ({
-                rect: moveRect(note.rect, subtractPoints(toBoardPoint(pointer, frame), start), frame.bounds),
+                rect: moveRect(startRect, subtractPoints(toBoardPoint(pointer, frame), start), frame.bounds),
                 overTrash: containsPoint(trashBox, { x: pointer.clientX, y: pointer.clientY }),
             });
 
-            beginGesture(event, { kind: 'moving', noteId: note.id, rect: note.rect, overTrash: false }, {
+            beginGesture(event, { kind: 'moving', noteId: note.id, rect: startRect, overTrash: false }, {
                 onMove: (pointer) => setInteraction({ kind: 'moving', noteId: note.id, ...previewAt(pointer) }),
                 onDrop: (pointer) => {
                     const { rect, overTrash } = previewAt(pointer);
                     if (overTrash) commands.deleteNote(note.id);
-                    else if (!rectsEqual(rect, note.rect)) commands.setNoteRect(note.id, rect);
+                    else if (!rectsEqual(rect, startRect)) commands.setNoteRect(note.id, rect);
                 },
             });
         },
@@ -143,14 +148,15 @@ export function Board({ notes, commands }: BoardProps) {
 
             const frame = measureBoard(board);
             const start = toBoardPoint(event, frame);
+            const startRect = fitRect(note.rect, MIN_NOTE_SIZE, frame.bounds); // what the user sees
             const previewAt = (pointer: PointerEvent) =>
-                resizeRect(note.rect, subtractPoints(toBoardPoint(pointer, frame), start), MIN_NOTE_SIZE, frame.bounds);
+                resizeRect(startRect, subtractPoints(toBoardPoint(pointer, frame), start), MIN_NOTE_SIZE, frame.bounds);
 
-            beginGesture(event, { kind: 'resizing', noteId: note.id, rect: note.rect }, {
+            beginGesture(event, { kind: 'resizing', noteId: note.id, rect: startRect }, {
                 onMove: (pointer) => setInteraction({ kind: 'resizing', noteId: note.id, rect: previewAt(pointer) }),
                 onDrop: (pointer) => {
                     const rect = previewAt(pointer);
-                    if (!rectsEqual(rect, note.rect)) commands.setNoteRect(note.id, rect);
+                    if (!rectsEqual(rect, startRect)) commands.setNoteRect(note.id, rect);
                 },
             });
         },
@@ -160,6 +166,9 @@ export function Board({ notes, commands }: BoardProps) {
     const active = interaction.kind === 'moving' || interaction.kind === 'resizing' ? interaction : null;
     const isMoving = interaction.kind === 'moving';
     const isOverTrash = interaction.kind === 'moving' && interaction.overTrash;
+    // Notes saved on a bigger window are pulled back on screen (display only, not saved).
+    const visibleRect = (note: Note): Rect =>
+        boardSize === null ? note.rect : fitRect(note.rect, MIN_NOTE_SIZE, boardSize);
 
     return (
         <div
@@ -174,12 +183,12 @@ export function Board({ notes, commands }: BoardProps) {
                         <StickyNote
                             key={note.id}
                             note={note}
-                            rect={isActive ? active.rect : note.rect}
+                            rect={isActive ? active.rect : visibleRect(note)}
                             isDragging={isActive}
                             isOverTrash={isActive && isOverTrash}
-                            onTextChange={commands.setNoteText}
                             onMoveStart={handleMoveStart}
                             onResizeStart={handleResizeStart}
+                            onTextChange={commands.setNoteText}
                             onActivate={commands.bringToFront}
                         />
                     );
@@ -190,7 +199,7 @@ export function Board({ notes, commands }: BoardProps) {
                 <div className="board__draft" style={rectStyle(interaction.rect)} />
             )}
 
-            {notes.length === 0 && interaction.kind === 'idle' && (
+            {notes.length === 0 && interaction.kind === 'idle' && !disabled && (
                 <p className="board__hint">Drag anywhere on the board to create a note</p>
             )}
 

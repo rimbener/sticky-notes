@@ -1,11 +1,12 @@
-import { useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { Rect } from '../domain/geometry';
 import { createNote, isOnTop, nextZ } from '../domain/note';
-import type { Note, NoteId } from '../domain/note';
+import type { Note, NoteChanges, NoteId } from '../domain/note';
+import type { NotesRepository } from '../persistence/NotesRepository';
 import { initialNotesState, notesReducer } from './notesReducer';
+import type { LoadStatus } from './notesReducer';
 
-/** Everything the UI can ask for. Components never see `dispatch` */
-
+/** Everything the UI can ask for. Components never see `dispatch`. */
 export interface NotesCommands {
     readonly createNote: (rect: Rect) => void;
     readonly setNoteRect: (id: NoteId, rect: Rect) => void;
@@ -15,45 +16,74 @@ export interface NotesCommands {
 }
 
 export interface UseNotesResult {
+    readonly status: LoadStatus;
     readonly notes: readonly Note[];
     readonly commands: NotesCommands;
 }
 
-export function useNotes(): UseNotesResult {
+export function useNotes(repository: NotesRepository): UseNotesResult {
     const [state, dispatch] = useReducer(notesReducer, initialNotesState);
+
     // Latest notes for commands, without re-creating the commands on every change.
     const notesRef = useRef(state.notes);
     useLayoutEffect(() => {
         notesRef.current = state.notes;
     }, [state.notes]);
 
-    // `dispatch` never changes, so one commands object can live as long as the component.
-    // React keeps a lazy initial state for the component's lifetime; useMemo is only a
-    // cache React may drop. (StrictMode calls the initializer twice in dev; that's fine
-    // because it has no side effects);
+    useEffect(() => {
+        let cancelled = false; // StrictMode runs effects twice in dev; ignore the stale result.
+        repository.list().then(
+            (notes) => {
+                if (!cancelled) dispatch({ type: 'notes/loaded', notes });
+            },
+            (cause: unknown) => {
+                console.error('Could not load notes', cause);
+                if (!cancelled) dispatch({ type: 'notes/loadFailed' });
+            },
+        );
+        return () => {
+            cancelled = true;
+        };
+    }, [repository]);
 
-    const [commands] = useState<NotesCommands>(
-        () => ({
+    // One commands object for the component's lifetime (a lazy initial state, not a
+    // droppable useMemo cache). `repository` must be stable (created outside React).
+    const [commands] = useState<NotesCommands>(() => {
+        /** Fire-and-forget save. Bonus V replaces this with a proper queue. */
+        function save(operation: Promise<void>): void {
+            operation.catch((cause: unknown) => console.error('Could not save', cause));
+        }
+
+        /** Optimistic update: change the UI now, persist in the background. */
+        function update(id: NoteId, changes: NoteChanges): void {
+            dispatch({ type: 'note/updated', id, changes });
+            save(repository.update(id, changes));
+        }
+
+        return {
             createNote(rect) {
-                dispatch({ type: 'note/added', note: createNote({ rect, z: nextZ(notesRef.current) }) });
+                const note = createNote({ rect, z: nextZ(notesRef.current) });
+                dispatch({ type: 'note/added', note });
+                save(repository.create(note));
             },
             setNoteRect(id, rect) {
-                dispatch({ type: 'note/updated', id, changes: { rect } });
-            },
-            deleteNote(id) {
-                dispatch({ type: 'note/removed', id });
+                update(id, { rect });
             },
             setNoteText(id, text) {
-                dispatch({ type: 'note/updated', id, changes: { text } })
+                update(id, { text });
             },
             bringToFront(id) {
                 const notes = notesRef.current;
                 const note = notes.find((candidate) => candidate.id === id);
                 if (note === undefined || isOnTop(note, notes)) return;
-                dispatch({ type: 'note/updated', id, changes: { z: nextZ(notes) } });
+                update(id, { z: nextZ(notes) });
             },
-        }),
-    );
+            deleteNote(id) {
+                dispatch({ type: 'note/removed', id });
+                save(repository.remove(id));
+            },
+        };
+    });
 
-    return { notes: state.notes, commands };
+    return { status: state.status, notes: state.notes, commands };
 }

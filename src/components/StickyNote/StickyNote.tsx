@@ -15,6 +15,7 @@ interface StickyNoteProps {
   readonly onTextChange: (id: NoteId, text: string) => void;
   readonly onMoveStart: (note: Note, event: ReactPointerEvent<HTMLElement>) => void;
   readonly onResizeStart: (note: Note, event: ReactPointerEvent<HTMLElement>) => void;
+  readonly onActivate: (id: NoteId) => void;
 }
 
 function StickyNoteComponent({
@@ -25,6 +26,7 @@ function StickyNoteComponent({
   onTextChange,
   onMoveStart,
   onResizeStart,
+  onActivate
 }: StickyNoteProps) {
   const className = classNames(
     'note',
@@ -33,7 +35,13 @@ function StickyNoteComponent({
   );
 
   return (
-    <article className={className} style={rectStyle(rect)}>
+    <article
+      className={className}
+      style={{ ...rectStyle(rect), zIndex: note.z }}
+      onPointerDownCapture={(event) => {
+        if (event.button === 0) onActivate(note.id);
+      }}
+    >
       <header className="note__header" onPointerDown={(event) => onMoveStart(note, event)}>
         <span className="note__grip" aria-hidden="true" />
       </header>

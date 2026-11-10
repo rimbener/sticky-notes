@@ -180,6 +180,7 @@ export function Board({ notes, commands }: BoardProps) {
                             onTextChange={commands.setNoteText}
                             onMoveStart={handleMoveStart}
                             onResizeStart={handleResizeStart}
+                            onActivate={commands.bringToFront}
                         />
                     );
                 })}

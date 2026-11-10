@@ -10,6 +10,7 @@ export interface Note {
     readonly id: NoteId;
     readonly rect: Rect;
     readonly text: string;
+    readonly z: number;
 }
 
 /** Everything that can change after a note exists. */
@@ -44,4 +45,12 @@ export function noteRectFromDrag(origin: Point, current: Point, bounds: Size): R
         return null;
     }
     return fitRect(rect, MIN_NOTE_SIZE, bounds);
+}
+
+export function nextZ(notes: readonly Note[]): number {
+    return notes.reduce((max, note) => Math.max(max, note.z), 0) + 1;
+}
+
+export function isOnTop(note: Note, notes: readonly Note[]): boolean {
+    return notes.every((other) => other.id === note.id || other.z < note.z);
 }

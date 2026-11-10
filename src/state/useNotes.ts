@@ -1,6 +1,6 @@
-import { useReducer, useState } from 'react';
+import { useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { Rect } from '../domain/geometry';
-import { createNote } from '../domain/note';
+import { createNote, isOnTop, nextZ } from '../domain/note';
 import type { Note, NoteId } from '../domain/note';
 import { initialNotesState, notesReducer } from './notesReducer';
 
@@ -11,6 +11,7 @@ export interface NotesCommands {
     readonly setNoteRect: (id: NoteId, rect: Rect) => void;
     readonly deleteNote: (id: NoteId) => void;
     readonly setNoteText: (id: NoteId, text: string) => void;
+    readonly bringToFront: (id: NoteId) => void;
 }
 
 export interface UseNotesResult {
@@ -20,6 +21,11 @@ export interface UseNotesResult {
 
 export function useNotes(): UseNotesResult {
     const [state, dispatch] = useReducer(notesReducer, initialNotesState);
+    // Latest notes for commands, without re-creating the commands on every change.
+    const notesRef = useRef(state.notes);
+    useLayoutEffect(() => {
+        notesRef.current = state.notes;
+    }, [state.notes]);
 
     // `dispatch` never changes, so one commands object can live as long as the component.
     // React keeps a lazy initial state for the component's lifetime; useMemo is only a
@@ -29,7 +35,7 @@ export function useNotes(): UseNotesResult {
     const [commands] = useState<NotesCommands>(
         () => ({
             createNote(rect) {
-                dispatch({ type: 'note/added', note: createNote({ rect }) });
+                dispatch({ type: 'note/added', note: createNote({ rect, z: nextZ(notesRef.current) }) });
             },
             setNoteRect(id, rect) {
                 dispatch({ type: 'note/updated', id, changes: { rect } });
@@ -39,7 +45,13 @@ export function useNotes(): UseNotesResult {
             },
             setNoteText(id, text) {
                 dispatch({ type: 'note/updated', id, changes: { text } })
-            }
+            },
+            bringToFront(id) {
+                const notes = notesRef.current;
+                const note = notes.find((candidate) => candidate.id === id);
+                if (note === undefined || isOnTop(note, notes)) return;
+                dispatch({ type: 'note/updated', id, changes: { z: nextZ(notes) } });
+            },
         }),
     );
 

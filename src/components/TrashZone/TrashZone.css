@@ -1,0 +1,37 @@
+.trash {
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 6px;
+    width: 120px;
+    height: 120px;
+    border: 2px dashed var(--ink-soft);
+    border-radius: 16px;
+    background: rgb(255 255 255 / 0.6);
+    color: var(--ink-soft);
+    font-size: 12px;
+    /* Drop detection is geometric (containsPoint), so the trash never needs clicks.
+       Letting them through keeps notes under it grabbable. */
+    pointer-events: none;
+    transition:
+        transform 120ms ease,
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease;
+}
+
+.trash--armed {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.trash--hovered {
+    border-style: solid;
+    background: var(--danger);
+    color: #fff;
+    transform: scale(1.08);
+}

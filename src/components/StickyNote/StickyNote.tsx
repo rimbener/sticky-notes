@@ -11,12 +11,17 @@ interface StickyNoteProps {
   /** Where to draw the note. Differs from note.rect while it is being dragged. */
   readonly rect: Rect;
   readonly isDragging: boolean;
+  readonly isOverTrash: boolean;
   readonly onMoveStart: (note: Note, event: ReactPointerEvent<HTMLElement>) => void;
   readonly onResizeStart: (note: Note, event: ReactPointerEvent<HTMLElement>) => void;
 }
 
-function StickyNoteComponent({ note, rect, isDragging, onMoveStart, onResizeStart }: StickyNoteProps) {
-  const className = classNames('note', isDragging && 'note--dragging');
+function StickyNoteComponent({ note, rect, isDragging, isOverTrash, onMoveStart, onResizeStart }: StickyNoteProps) {
+  const className = classNames(
+    'note',
+    isDragging && 'note--dragging',
+    isOverTrash && 'note--over-trash',
+  );
 
   return (
     <article className={className} style={rectStyle(rect)}>

@@ -1,7 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Point, Rect, Size } from '../../domain/geometry';
-import { clampPoint, moveRect, rectsEqual, resizeRect, subtractPoints } from '../../domain/geometry';
+import { clampPoint, containsPoint, moveRect, rectsEqual, resizeRect, subtractPoints } from '../../domain/geometry';
 import type { Note, NoteId } from '../../domain/note';
 import { MIN_NOTE_SIZE, noteRectFromDrag } from '../../domain/note';
 import { startPointerDrag } from '../../interaction/pointerDrag';
@@ -9,6 +9,7 @@ import type { NotesCommands } from '../../state/useNotes';
 import { classNames } from '../../utils/classNames';
 import { rectStyle } from '../rectStyle';
 import { StickyNote } from '../StickyNote/StickyNote';
+import { TrashZone } from '../TrashZone/TrashZone';
 import './Board.css';
 
 /** What the user is doing right now. Only one gesture can be active at a time. */
@@ -50,6 +51,7 @@ interface BoardProps {
 
 export function Board({ notes, commands }: BoardProps) {
     const boardRef = useRef<HTMLDivElement>(null);
+    const trashRef = useRef<HTMLDivElement>(null);
     const stopDragRef = useRef<(() => void) | null>(null);
     const [interaction, setInteraction] = useState<Interaction>(IDLE);
 
@@ -80,7 +82,11 @@ export function Board({ notes, commands }: BoardProps) {
     const handleBoardPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
         // Only primary-button presses on empty board space start a new note.
         if (event.button !== 0 || event.target !== event.currentTarget) return;
-        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        // The trash lets clicks through (pointer-events: none), so ignore presses on it here.
+        const trash = trashRef.current;
+        if (trash !== null && containsPoint(trash.getBoundingClientRect(), { x: event.clientX, y: event.clientY })) {
+            return;
+        } if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 
         const frame = measureBoard(event.currentTarget);
         const origin = clampPoint(toBoardPoint(event, frame), frame.bounds);
@@ -117,25 +123,33 @@ export function Board({ notes, commands }: BoardProps) {
     const handleMoveStart = useCallback(
         (note: Note, event: ReactPointerEvent<HTMLElement>) => {
             const board = boardRef.current;
-            if (event.button !== 0 || board === null) return
+            const trash = trashRef.current;
+            if (event.button !== 0 || board === null || trash === null) return;
 
             const frame = measureBoard(board);
+            const trashBox = trash.getBoundingClientRect();
             const start = toBoardPoint(event, frame);
-            const previewAt = (pointer: PointerEvent) =>
-                moveRect(note.rect, subtractPoints(toBoardPoint(pointer, frame), start), frame.bounds)
+            const previewAt = (pointer: PointerEvent) => ({
+                rect: moveRect(note.rect, subtractPoints(toBoardPoint(pointer, frame), start), frame.bounds),
+                overTrash: containsPoint(trashBox, { x: pointer.clientX, y: pointer.clientY }),
+            });
 
             beginGesture(event, { kind: 'moving', noteId: note.id, rect: note.rect, overTrash: false }, {
-                onMove: (pointer) => setInteraction({ kind: 'moving', noteId: note.id, rect: previewAt(pointer), overTrash: false }),
+                onMove: (pointer) => setInteraction({ kind: 'moving', noteId: note.id, ...previewAt(pointer) }),
                 onDrop: (pointer) => {
-                    const rect = previewAt(pointer);
-                    if (!rectsEqual(rect, note.rect)) commands.setNoteRect(note.id, rect)
-                }
-            })
+                    const { rect, overTrash } = previewAt(pointer);
+                    if (overTrash) commands.deleteNote(note.id);
+                    else if (!rectsEqual(rect, note.rect)) commands.setNoteRect(note.id, rect);
+                },
+            });
         },
-        [beginGesture, commands]
-    )
+        [beginGesture, commands],
+    );
 
     const active = interaction.kind === 'moving' || interaction.kind === 'resizing' ? interaction : null;
+    const isMoving = interaction.kind === 'moving';
+    const isOverTrash = interaction.kind === 'moving' && interaction.overTrash;
+
 
     return (
         <div
@@ -146,12 +160,14 @@ export function Board({ notes, commands }: BoardProps) {
             <div className="board__layer">
                 {notes.map((note) => {
                     const isActive = active !== null && active.noteId === note.id;
+
                     return (
                         <StickyNote
                             key={note.id}
                             note={note}
                             rect={isActive ? active.rect : note.rect}
                             isDragging={isActive}
+                            isOverTrash={isActive && isOverTrash}
                             onMoveStart={handleMoveStart}
                             onResizeStart={handleResizeStart}
                         />
@@ -166,6 +182,7 @@ export function Board({ notes, commands }: BoardProps) {
             {notes.length === 0 && interaction.kind === 'idle' && (
                 <p className="board__hint">Drag anywhere on the board to create a note</p>
             )}
+            <TrashZone ref={trashRef} isArmed={isMoving} isHovered={isOverTrash} />
         </div>
     );
 }

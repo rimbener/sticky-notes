@@ -1,10 +1,10 @@
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { memo } from 'react';
 import type { Rect } from '../../domain/geometry';
 import type { Note } from '../../domain/note';
+import { classNames } from '../../utils/classNames';
 import { rectStyle } from '../rectStyle';
 import './StickyNote.css';
-import type { PointerEvent as ReactPointerEvent } from 'react';
-import { classNames } from '../../utils/classNames';
 
 interface StickyNoteProps {
   readonly note: Note;
@@ -16,7 +16,14 @@ interface StickyNoteProps {
   readonly onResizeStart: (note: Note, event: ReactPointerEvent<HTMLElement>) => void;
 }
 
-function StickyNoteComponent({ note, rect, isDragging, isOverTrash, onMoveStart, onResizeStart }: StickyNoteProps) {
+function StickyNoteComponent({
+  note,
+  rect,
+  isDragging,
+  isOverTrash,
+  onMoveStart,
+  onResizeStart,
+}: StickyNoteProps) {
   const className = classNames(
     'note',
     isDragging && 'note--dragging',
@@ -25,7 +32,7 @@ function StickyNoteComponent({ note, rect, isDragging, isOverTrash, onMoveStart,
 
   return (
     <article className={className} style={rectStyle(rect)}>
-      <header className="note__header" onPointerDown={event => onMoveStart(note, event)}>
+      <header className="note__header" onPointerDown={(event) => onMoveStart(note, event)}>
         <span className="note__grip" aria-hidden="true" />
       </header>
       <div className="note__body" />

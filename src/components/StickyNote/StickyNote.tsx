@@ -1,10 +1,11 @@
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { memo } from 'react';
 import type { Rect } from '../../domain/geometry';
-import type { Note, NoteId } from '../../domain/note';
+import type { Note, NoteColor, NoteId } from '../../domain/note';
 import { classNames } from '../../utils/classNames';
 import { rectStyle } from '../rectStyle';
 import './StickyNote.css';
+import { ColorPicker } from '../ColorPicker/ColorPicker';
 
 interface StickyNoteProps {
   readonly note: Note;
@@ -16,6 +17,7 @@ interface StickyNoteProps {
   readonly onMoveStart: (note: Note, event: ReactPointerEvent<HTMLElement>) => void;
   readonly onResizeStart: (note: Note, event: ReactPointerEvent<HTMLElement>) => void;
   readonly onActivate: (id: NoteId) => void;
+  readonly onColorChange: (id: NoteId, color: NoteColor) => void
 }
 
 function StickyNoteComponent({
@@ -26,7 +28,8 @@ function StickyNoteComponent({
   onTextChange,
   onMoveStart,
   onResizeStart,
-  onActivate
+  onActivate,
+  onColorChange
 }: StickyNoteProps) {
   const className = classNames(
     'note',
@@ -36,6 +39,7 @@ function StickyNoteComponent({
 
   return (
     <article
+      data-color={note.color}
       className={className}
       style={{ ...rectStyle(rect), zIndex: note.z }}
       onPointerDownCapture={(event) => {
@@ -44,6 +48,7 @@ function StickyNoteComponent({
     >
       <header className="note__header" onPointerDown={(event) => onMoveStart(note, event)}>
         <span className="note__grip" aria-hidden="true" />
+        <ColorPicker value={note.color} onChange={(color) => onColorChange(note.id, color)} />
       </header>
       <textarea
         className="note__text"

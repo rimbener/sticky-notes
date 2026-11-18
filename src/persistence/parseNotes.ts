@@ -1,5 +1,5 @@
 import type { Rect } from '../domain/geometry';
-import { toNoteId } from '../domain/note';
+import { DEFAULT_NOTE_COLOR, isNoteColor, toNoteId } from '../domain/note';
 import type { Note } from '../domain/note';
 
 // Data from localStorage or the network is `unknown` until we check it.
@@ -24,12 +24,18 @@ function parseRect(value: unknown): Rect | null {
 
 export function parseNote(value: unknown): Note | null {
     if (!isRecord(value)) return null;
-    const { id, text, z } = value;
+    const { id, text, z, color } = value;
     const rect = parseRect(value.rect);
     if (typeof id !== 'string' || rect === null || typeof text !== 'string' || !isFiniteNumber(z)) {
         return null;
     }
-    return { id: toNoteId(id), rect, text, z };
+    return {
+        id: toNoteId(id),
+        rect,
+        text,
+        z,
+        color: isNoteColor(color) ? color : DEFAULT_NOTE_COLOR
+    };
 }
 
 export function parseNotes(value: unknown): Note[] {

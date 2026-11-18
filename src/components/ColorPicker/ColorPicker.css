@@ -1,0 +1,27 @@
+.color-picker {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+/* Only show the swatches when they are useful: on hover or keyboard focus. */
+.note:hover .color-picker,
+.color-picker:focus-within {
+    opacity: 1;
+}
+
+.color-picker__swatch {
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: 1px solid rgb(0 0 0 / 0.25);
+    border-radius: 50%;
+    background: var(--note-bg);
+    cursor: pointer;
+}
+
+.color-picker__swatch[aria-pressed='true'] {
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+}

@@ -1,0 +1,25 @@
+/* One palette, used by notes and by the color picker swatches. */
+[data-color='yellow'] {
+    --note-bg: #fff3a3;
+    --note-header: #fbe47a;
+}
+
+[data-color='pink'] {
+    --note-bg: #ffd1dc;
+    --note-header: #ffb3c6;
+}
+
+[data-color='blue'] {
+    --note-bg: #cde8ff;
+    --note-header: #a9d6ff;
+}
+
+[data-color='green'] {
+    --note-bg: #d4f5c9;
+    --note-header: #b4eaa3;
+}
+
+[data-color='purple'] {
+    --note-bg: #e6d9ff;
+    --note-header: #d2bfff;
+}

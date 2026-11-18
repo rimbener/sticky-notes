@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { Rect } from '../domain/geometry';
-import { createNote, isOnTop, nextZ } from '../domain/note';
-import type { Note, NoteChanges, NoteId } from '../domain/note';
+import type { Note, NoteChanges, NoteColor, NoteId } from '../domain/note';
+import { createNote, DEFAULT_NOTE_COLOR, isOnTop, nextZ } from '../domain/note';
 import type { NotesRepository } from '../persistence/NotesRepository';
-import { initialNotesState, notesReducer } from './notesReducer';
 import type { LoadStatus } from './notesReducer';
+import { initialNotesState, notesReducer } from './notesReducer';
 
 /** Everything the UI can ask for. Components never see `dispatch`. */
 export interface NotesCommands {
@@ -13,6 +13,7 @@ export interface NotesCommands {
     readonly deleteNote: (id: NoteId) => void;
     readonly setNoteText: (id: NoteId, text: string) => void;
     readonly bringToFront: (id: NoteId) => void;
+    readonly setNoteColor: (id: NoteId, color: NoteColor) => void;
 }
 
 export interface UseNotesResult {
@@ -62,9 +63,12 @@ export function useNotes(repository: NotesRepository): UseNotesResult {
 
         return {
             createNote(rect) {
-                const note = createNote({ rect, z: nextZ(notesRef.current) });
+                const note = createNote({ rect, z: nextZ(notesRef.current), color: DEFAULT_NOTE_COLOR });
                 dispatch({ type: 'note/added', note });
                 save(repository.create(note));
+            },
+            setNoteColor(id, color) {
+                update(id, { color })
             },
             setNoteRect(id, rect) {
                 update(id, { rect });

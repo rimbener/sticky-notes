@@ -190,6 +190,7 @@ export function Board({ notes, commands, disabled }: BoardProps) {
                             onResizeStart={handleResizeStart}
                             onTextChange={commands.setNoteText}
                             onActivate={commands.bringToFront}
+                            onColorChange={commands.setNoteColor}
                         />
                     );
                 })}

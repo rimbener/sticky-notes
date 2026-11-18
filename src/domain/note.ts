@@ -6,11 +6,16 @@ declare const noteIdBrand: unique symbol;
 /** A string known to identify a note. You can't pass any random string where a NoteId is expected. */
 export type NoteId = string & { readonly [noteIdBrand]: true };
 
+export const NOTE_COLORS = ['yellow', 'pink', 'blue', 'green', 'purple'] as const;
+export type NoteColor = (typeof NOTE_COLORS)[number];
+export const DEFAULT_NOTE_COLOR: NoteColor = 'yellow';
+
 export interface Note {
     readonly id: NoteId;
     readonly rect: Rect;
     readonly text: string;
     readonly z: number;
+    readonly color: NoteColor;
 }
 
 /** Everything that can change after a note exists. */
@@ -53,4 +58,8 @@ export function nextZ(notes: readonly Note[]): number {
 
 export function isOnTop(note: Note, notes: readonly Note[]): boolean {
     return notes.every((other) => other.id === note.id || other.z < note.z);
+}
+
+export function isNoteColor(value: unknown): value is NoteColor {
+    return typeof value === 'string' && (NOTE_COLORS as readonly string[]).includes(value);
 }
